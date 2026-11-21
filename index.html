@@ -1,92 +1,122 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Kamera Selfie SIPADU</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kamera Selfie SIPADU</title>
 
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      background: #f1f5f9;
-      text-align: center;
-      padding: 20px;
-    }
+<style>
+body {
+  font-family: Arial, sans-serif;
+  background: #f1f5f9;
+  text-align: center;
+  padding: 20px;
+}
 
-    .box {
-      max-width: 500px;
-      margin: auto;
-      background: white;
-      padding: 20px;
-      border-radius: 15px;
-    }
+.box {
+  max-width: 500px;
+  margin: auto;
+  background: white;
+  padding: 20px;
+  border-radius: 15px;
+}
 
-    video, canvas, img {
-      width: 100%;
-      border-radius: 12px;
-      margin-top: 12px;
-    }
+video, canvas, img {
+  width: 100%;
+  border-radius: 12px;
+  margin-top: 12px;
+}
 
-    button {
-      width: 100%;
-      padding: 14px;
-      margin-top: 12px;
-      border: none;
-      border-radius: 8px;
-      background: #1a73e8;
-      color: white;
-      font-size: 16px;
-    }
+button {
+  width: 100%;
+  padding: 14px;
+  margin-top: 12px;
+  border: none;
+  border-radius: 8px;
+  background: #1a73e8;
+  color: white;
+  font-size: 16px;
+}
 
-    #pesan {
-      margin-top: 15px;
-    }
-  </style>
+#btnGunakan {
+  background: #188038;
+  display: none;
+}
+
+#pesan {
+  margin-top: 15px;
+}
+</style>
 </head>
 
 <body>
 
 <div class="box">
-  <h2>KAMERA SELFIE SIPADU</h2>
-  <p>Ambil foto untuk presensi guru dan tenaga kependidikan.</p>
 
-  <video id="video" autoplay playsinline muted></video>
+<h2>KAMERA SELFIE SIPADU</h2>
 
-  <canvas id="canvas" style="display:none"></canvas>
+<p>Ambil foto untuk presensi guru dan tendik.</p>
 
-  <img id="preview" style="display:none">
+<video id="video" autoplay playsinline muted></video>
 
-  <button onclick="bukaKamera()">AKTIFKAN KAMERA</button>
-  <button onclick="ambilFoto()">AMBIL SELFIE</button>
-  <button onclick="ulangFoto()">ULANGI FOTO</button>
+<canvas id="canvas" style="display:none"></canvas>
 
-  <p id="pesan">Silakan aktifkan kamera.</p>
+<img id="preview" style="display:none">
+
+<button onclick="bukaKamera()">
+AKTIFKAN KAMERA
+</button>
+
+<button onclick="ambilFoto()">
+AMBIL SELFIE
+</button>
+
+<button id="btnGunakan" onclick="kirimFoto()">
+GUNAKAN FOTO INI
+</button>
+
+<button onclick="ulangFoto()">
+ULANGI FOTO
+</button>
+
+<p id="pesan">Silakan aktifkan kamera.</p>
+
 </div>
 
 <script>
+
 let stream = null;
+let fotoSelfieDataUrl = "";
 
 async function bukaKamera() {
+
   try {
+
     stream = await navigator.mediaDevices.getUserMedia({
       video: { facingMode: "user" },
       audio: false
     });
 
     const video = document.getElementById("video");
+
     video.srcObject = stream;
+    video.style.display = "block";
+
     await video.play();
 
     document.getElementById("pesan").innerText =
       "Kamera berhasil diaktifkan.";
 
   } catch (error) {
+
     document.getElementById("pesan").innerText =
-      "Kamera gagal dibuka: " + error.name + " - " + error.message;
+      "Kamera gagal dibuka: " + error.name;
+
   }
 }
 
 function ambilFoto() {
+
   const video = document.getElementById("video");
 
   if (!stream || !video.videoWidth) {
@@ -96,37 +126,101 @@ function ambilFoto() {
   }
 
   const canvas = document.getElementById("canvas");
-  canvas.width = video.videoWidth;
-  canvas.height = video.videoHeight;
+
+  let lebar = video.videoWidth;
+  let tinggi = video.videoHeight;
+
+  if (lebar > 800) {
+    tinggi = tinggi * 800 / lebar;
+    lebar = 800;
+  }
+
+  canvas.width = lebar;
+  canvas.height = tinggi;
 
   canvas.getContext("2d").drawImage(
-    video, 0, 0, canvas.width, canvas.height
+    video, 0, 0, lebar, tinggi
   );
 
-  document.getElementById("preview").src =
-    canvas.toDataURL("image/jpeg", 0.8);
+  fotoSelfieDataUrl =
+    canvas.toDataURL("image/jpeg", 0.75);
 
-  document.getElementById("preview").style.display = "block";
+  document.getElementById("preview").src =
+    fotoSelfieDataUrl;
+
+  document.getElementById("preview").style.display =
+    "block";
+
   video.style.display = "none";
 
   hentikanKamera();
 
+  document.getElementById("btnGunakan").style.display =
+    "block";
+
   document.getElementById("pesan").innerText =
-    "Foto selfie berhasil diambil.";
+    "Foto berhasil diambil. Periksa foto Anda.";
+}
+
+function kirimFoto() {
+
+  if (!fotoSelfieDataUrl) {
+    alert("Foto belum tersedia.");
+    return;
+  }
+
+  if (!window.opener || window.opener.closed) {
+
+    document.getElementById("pesan").innerText =
+      "Halaman SIPADU tidak terhubung. Silakan buka kamera dari SIPADU.";
+
+    return;
+  }
+
+  window.opener.postMessage({
+
+    type: "SIPADU_SELFIE",
+    foto: fotoSelfieDataUrl
+
+  }, "*");
+
+  document.getElementById("pesan").innerText =
+    "Foto dikirim ke SIPADU.";
+
+  document.getElementById("btnGunakan").disabled = true;
+
+  setTimeout(function() {
+    window.close();
+  }, 1000);
 }
 
 function ulangFoto() {
-  document.getElementById("preview").style.display = "none";
-  document.getElementById("video").style.display = "block";
+
+  fotoSelfieDataUrl = "";
+
+  document.getElementById("preview").style.display =
+    "none";
+
+  document.getElementById("btnGunakan").style.display =
+    "none";
+
+  document.getElementById("btnGunakan").disabled = false;
+
   bukaKamera();
 }
 
 function hentikanKamera() {
+
   if (stream) {
-    stream.getTracks().forEach(track => track.stop());
+
+    stream.getTracks().forEach(function(track) {
+      track.stop();
+    });
+
     stream = null;
   }
 }
+
 </script>
 
 </body>
